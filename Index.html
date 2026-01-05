@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Anime Tracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #121212; color: #fff; padding: 20px; max-width: 800px; margin: auto; }
+        input, button, textarea { padding: 10px; margin: 5px; border-radius: 5px; border: none; }
+        input, textarea { background: #333; color: #fff; }
+        button { background: #4CAF50; color: white; cursor: pointer; }
+        button:hover { background: #45a049; }
+        .anime-item { background: #222; padding: 10px; margin: 10px 0; border-radius: 5px; display: flex; align-items: center; }
+        .anime-item img { width: 100px; height: auto; margin-right: 15px; }
+        .anime-info { flex: 1; }
+        .anime-controls button { background: #2196F3; margin: 0 5px; }
+        .anime-controls button.prev { background: #f44336; }
+        #anime-list { margin-top: 20px; }
+        #search { width: 100%; box-sizing: border-box; }
+        #notifications { color: #ffeb3b; }
+        @media (max-width: 600px) { .anime-item { flex-direction: column; text-align: center; } .anime-item img { margin-bottom: 10px; } }
+    </style>
+</head>
+<body>
+    <h1>My Anime Tracker</h1>
+    <input type="text" id="anime-name" placeholder="Type anime name (autocomplete)" list="anime-suggestions">
+    <datalist id="anime-suggestions"></datalist>
+    <button onclick="addAnime()">Add Anime</button>
+    <br>
+    <textarea id="batch-add" placeholder="Batch add: One anime name per line"></textarea>
+    <button onclick="batchAddAnime()">Batch Add</button>
+    <br>
+    <input type="text" id="search" placeholder="Search your list" oninput="filterList()">
+    <button onclick="exportList()">Export List (JSON)</button>
+    <button onclick="requestNotifications()">Enable Notifications</button>
+    <div id="notifications"></div>
+    <div id="anime-list"></div>
+
+    <script>
+        let animeList = JSON.parse(localStorage.getItem('animeList')) || [];
+        const API_BASE = 'https://api.jikan.moe/v4';
+
+        function saveList() {
+            localStorage.setItem('animeList', JSON.stringify(animeList));
+            renderList();
+        }
+
+        async function searchAnime(query) {
+            try {
+                const res = await fetch(`\( {API_BASE}/anime?q= \){encodeURIComponent(query)}&limit=5`);
+                const data = await res.json();
+                return data.data;
+            } catch (e) {
+                console.error('API error:', e);
+                return [];
+            }
+        }
+
+        document.getElementById('anime-name').addEventListener('input', async (e) => {
+            const query = e.target.value;
+            if (query.length < 3) return;
+            const suggestions = await searchAnime(query);
+            const datalist = document.getElementById('anime-suggestions');
+            datalist.innerHTML = '';
+            suggestions.forEach(anime => {
+                const option = document.createElement('option');
+                option.value = anime.title;
+                datalist.appendChild(option);
+            });
+        });
+
+        async function addAnime(name = null, manualDate = null) {
+            const animeName = name || document.getElementById('anime-name').value.trim();
+            if (!animeName) return alert('Enter an anime name');
+            if (animeList.some(a => a.name.toLowerCase() === animeName.toLowerCase())) return alert('Already added');
+
+            const suggestions = await searchAnime(animeName);
+            const animeData = suggestions[0] || { mal_id: null, image: '', episodes: 0, nextRelease: null };
+            const anime = {
+                name: animeName,
+                watched: 0,
+                malId: animeData.mal_id,
+                poster: animeData.images?.jpg?.image_url || '',
+                totalEpisodes: animeData.episodes || 0,
+                nextRelease: manualDate || await getNextRelease(animeData.mal_id)
+            };
+            animeList.push(anime);
+            saveList();
+            document.getElementById('anime-name').value = '';
+        }
+
+        function batchAddAnime() {
+            const names = document.getElementById('batch-add').value.trim().split('\n').filter(n => n.trim());
+            names.forEach(name => addAnime(name));
+            document.getElementById('batch-add').value = '';
+        }
+
+        async function getNextRelease(malId) {
+            if (!malId) return null;
+            try {
+                const res = await fetch(`\( {API_BASE}/anime/ \){malId}/episodes`);
+                const data = await res.json();
+                // Find next unreleased episode date (simplified; in real, parse airing schedule)
+                // For now, assume we fetch broadcasting from /anime/{id}
+                const animeRes = await fetch(`\( {API_BASE}/anime/ \){malId}`);
+                const animeInfo = await animeRes.json();
+                return animeInfo.data.broadcast?.string || null; // e.g., "Fridays at 01:23 (JST)"
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function updateEp(anime, delta) {
+            anime.watched = Math.max(0, anime.watched + delta);
+            if (anime.watched > anime.totalEpisodes && anime.totalEpisodes > 0) anime.watched = anime.totalEpisodes;
+            saveList();
+        }
+
+        function markCompleted(anime) {
+            anime.completed = true;
+            saveList();
+        }
+
+        function setManualDate(anime) {
+            const date = prompt('Enter next release date (YYYY-MM-DD):');
+            if (date) anime.nextRelease = date;
+            saveList();
+        }
+
+        function renderList() {
+            const listDiv = document.getElementById('anime-list');
+            listDiv.innerHTML = '';
+            // Sort by next release date
+            animeList.sort((a, b) => {
+                const dateA = new Date(a.nextRelease || '9999-12-31');
+                const dateB = new Date(b.nextRelease || '9999-12-31');
+                return dateA - dateB;
+            });
+            animeList.forEach(anime => {
+                if (anime.completed) return;
+                const div = document.createElement('div');
+                div.className = 'anime-item';
+                div.innerHTML = `
+                    <img src="\( {anime.poster}" alt=" \){anime.name} poster">
+                    <div class="anime-info">
+                        <h3>${anime.name}</h3>
+                        <p>Watched: ${anime.watched} / ${anime.totalEpisodes || '?'}</p>
+                        <p>Next Release: ${anime.nextRelease || 'TBD'}</p>
+                    </div>
+                    <div class="anime-controls">
+                        <button class="prev" onclick='updateEp(${JSON.stringify(anime)}, -1)'>Prev</button>
+                        <button onclick='updateEp(${JSON.stringify(anime)}, 1)'>Next</button>
+                        <button onclick='setManualDate(${JSON.stringify(anime)})'>Set Date</button>
+                        <button onclick='markCompleted(${JSON.stringify(anime)})'>Completed</button>
+                    </div>
+                `;
+                listDiv.appendChild(div);
+            });
+        }
+
+        function filterList() {
+            const search = document.getElementById('search').value.toLowerCase();
+            document.querySelectorAll('.anime-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(search) ? '' : 'none';
+            });
+        }
+
+        function exportList() {
+            const data = JSON.stringify(animeList);
+            const blob = new Blob([data], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'anime-list.json';
+            a.click();
+        }
+
+        function requestNotifications() {
+            Notification.requestPermission().then(perm => {
+                if (perm === 'granted') {
+                    document.getElementById('notifications').textContent = 'Notifications enabled!';
+                    checkNotifications();
+                }
+            });
+        }
+
+        function checkNotifications() {
+            setInterval(() => {
+                const today = new Date().toISOString().split('T')[0];
+                animeList.forEach(anime => {
+                    if (anime.nextRelease === today) {
+                        new Notification(`New episode for ${anime.name}!`);
+                        // Update next release if auto
+                        if (anime.malId) getNextRelease(anime.malId).then(date => { anime.nextRelease = date; saveList(); });
+                    }
+                });
+            }, 60000); // Check every minute
+        }
+
+        renderList();
+        if (Notification.permission === 'granted') checkNotifications();
+    </script>
+</body>
+</html>
