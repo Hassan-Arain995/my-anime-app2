@@ -2,149 +2,169 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Infinity Anime Tracker</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://cdn.tailwindcss.com"></script>
+<title>Anime Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
-body{background:#030303;color:white}
-.card{background:#000;border:1px solid #222;border-radius:12px}
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #0f172a;
+    color: #fff;
+}
+header {
+    background: #020617;
+    padding: 15px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+}
+.container {
+    padding: 15px;
+}
+input, button {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 6px;
+    border: none;
+}
+button {
+    background: #22c55e;
+    color: #000;
+    font-weight: bold;
+    cursor: pointer;
+}
+.card {
+    background: #020617;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 8px;
+}
+.card span {
+    display: block;
+    margin: 5px 0;
+}
+.small-btn {
+    background: #38bdf8;
+    margin-top: 5px;
+}
 </style>
 </head>
 
-<body class="p-4 max-w-6xl mx-auto">
+<body>
 
-<!-- HEADER -->
-<header class="flex justify-between items-center mb-6">
-  <h1 class="text-xl font-bold text-cyan-400">INFINITY</h1>
-  <div class="flex gap-3 items-center">
-    <button onclick="enableNotif()">🔔</button>
-    <button onclick="openBell()">Bell <span id="bellCount" class="text-red-500 hidden">0</span></button>
-    <button onclick="openDiscovery()">Discovery</button>
-  </div>
-</header>
+<header>Anime Tracker</header>
 
-<!-- SEARCH -->
-<input id="searchInput" placeholder="Search anime (English / Japanese)"
-class="w-full p-2 mb-4 bg-black border border-gray-700">
+<div class="container">
 
-<!-- FILTER -->
-<select id="genreFilter" onchange="renderList()" class="mb-4 bg-black border p-2">
-<option value="">All Genres</option>
-</select>
+<input id="animeName" placeholder="Anime Name">
+<input id="totalEp" type="number" placeholder="Total Episodes">
+<button onclick="addAnime()">Add Anime</button>
 
-<!-- ADD -->
-<div class="flex gap-2 mb-4">
-<input id="addInput" placeholder="Add anime name"
-class="flex-1 p-2 bg-black border">
-<button onclick="addAnime()" class="bg-cyan-600 px-4">Add</button>
+<div id="list"></div>
+
 </div>
 
-<!-- WATCHLIST -->
-<div id="list" class="grid md:grid-cols-2 gap-4"></div>
-
 <script>
-/* ===== DATA ===== */
-let list = JSON.parse(localStorage.getItem("list")) || [];
-let bell = JSON.parse(localStorage.getItem("bell")) || [];
+/* ===============================
+   STORAGE & ACCOUNT SYNC
+   =============================== */
 
-/* ===== NOTIFICATION ===== */
-function enableNotif(){
-  Notification.requestPermission();
-}
-function notify(title){
-  if(Notification.permission==="granted"){
-    new Notification("New Episode", { body:title });
-  }
-  bell.push(title);
-  localStorage.setItem("bell",JSON.stringify(bell));
-  updateBell();
-}
-function updateBell(){
-  const b=document.getElementById("bellCount");
-  if(bell.length){
-    b.textContent=bell.length;
-    b.classList.remove("hidden");
-  } else b.classList.add("hidden");
-}
-function openBell(){
-  alert(bell.join("\n")||"No new updates");
-  bell=[];
-  localStorage.removeItem("bell");
-  updateBell();
-}
-updateBell();
+let animeList = JSON.parse(localStorage.getItem("animeList")) || [];
 
-/* ===== ADD ANIME (LATEST ONLY) ===== */
-async function addAnime(){
-  const q=addInput.value.trim();
-  if(!q) return;
+// Optional Firebase (REMOVE if not needed)
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_DOMAIN",
+    projectId: "YOUR_PROJECT_ID"
+};
+// Firebase not initialized unless user adds SDK
 
-  const res=await fetch(
-    `https://api.jikan.moe/v4/anime?q=${q}&order_by=start_date&sort=desc&sfw`
-  );
-  const j=await res.json();
-  const a=j.data?.[0];
-  if(!a) return;
-
-  list.push({
-    title:a.title_english||a.title,
-    jp:a.title_japanese||"",
-    img:a.images.jpg.large_image_url,
-    genres:a.genres.map(g=>g.name),
-    date:a.aired.from?.split("T")[0]||"TBA"
-  });
-
-  localStorage.setItem("list",JSON.stringify(list));
-  addInput.value="";
-  loadGenres();
-  renderList();
+function saveData() {
+    localStorage.setItem("animeList", JSON.stringify(animeList));
 }
 
-/* ===== RENDER ===== */
-function renderList(){
-  const s=searchInput.value.toLowerCase();
-  const g=genreFilter.value;
-  listDiv.innerHTML="";
+/* ===============================
+   NOTIFICATION SUPPORT
+   =============================== */
 
-  list
-  .filter(a=>
-    (!g||a.genres.includes(g)) &&
-    (a.title.toLowerCase().includes(s) ||
-     a.jp.toLowerCase().includes(s))
-  )
-  .forEach(a=>{
-    const d=document.createElement("div");
-    d.className="card p-3 flex gap-3";
-    d.innerHTML=`
-      <img src="${a.img}" class="w-20 h-28 object-cover">
-      <div>
-        <b>${a.title}</b>
-        <div class="text-xs text-gray-400">${a.date}</div>
-        <div class="text-xs">${a.genres.join(", ")}</div>
-        <button onclick="notify('${a.title}')" class="mt-2 text-cyan-400">
-          Simulate New Episode
-        </button>
-      </div>`;
-    listDiv.appendChild(d);
-  });
+if ("Notification" in window) {
+    Notification.requestPermission();
 }
-const listDiv=document.getElementById("list");
 
-/* ===== GENRES ===== */
-function loadGenres(){
-  genreFilter.innerHTML='<option value="">All Genres</option>';
-  [...new Set(list.flatMap(a=>a.genres))]
-  .forEach(g=>{
-    genreFilter.innerHTML+=`<option>${g}</option>`;
-  });
+function sendNotification(title, body) {
+    if (Notification.permission === "granted") {
+        new Notification(title, { body });
+    }
 }
-loadGenres();
-renderList();
 
-/* ===== DISCOVERY ===== */
-function openDiscovery(){
-  window.open("https://myanimelist.net/anime/season","_blank");
+/* ===============================
+   ANIME FUNCTIONS
+   =============================== */
+
+function addAnime() {
+    const name = animeName.value.trim();
+    const total = Number(totalEp.value);
+
+    if (!name || !total) return;
+
+    animeList.push({
+        name,
+        total,
+        watched: 0
+    });
+
+    saveData();
+    render();
+    animeName.value = "";
+    totalEp.value = "";
 }
+
+function watchEp(index) {
+    let anime = animeList[index];
+    if (anime.watched < anime.total) {
+        anime.watched++;
+        saveData();
+
+        if (anime.watched === anime.total) {
+            sendNotification(
+                "Anime Completed 🎉",
+                `${anime.name} is fully watched`
+            );
+        }
+    }
+    render();
+}
+
+function render() {
+    list.innerHTML = "";
+    animeList.forEach((a, i) => {
+        list.innerHTML += `
+        <div class="card">
+            <span><b>${a.name}</b></span>
+            <span>Episodes: ${a.watched} / ${a.total}</span>
+            <button class="small-btn" onclick="watchEp(${i})">+1 Episode</button>
+        </div>
+        `;
+    });
+}
+
+render();
+
+/* ===============================
+   BACKGROUND AUTO TRACK
+   =============================== */
+
+setInterval(() => {
+    animeList.forEach(a => {
+        if (a.watched === a.total && !a.notified) {
+            a.notified = true;
+            sendNotification("Reminder", `${a.name} completed`);
+        }
+    });
+}, 60000);
+
 </script>
 
 </body>
