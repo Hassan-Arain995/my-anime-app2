@@ -1,209 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gojo Infinity v9: Ultimate Hybrid</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
-    <style>
-        :root { --neon-blue: #00f3ff; --neon-purple: #9d00ff; --bg: #030303; }
-        body { 
-            background: var(--bg); color: white; font-family: 'Rajdhani', sans-serif;
-            background-image: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #020205 100%);
-            min-height: 100vh; overflow-x: hidden;
-        }
-        .font-cyber { font-family: 'Orbitron', sans-serif; }
-        .glass { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
-        .card { transition: 0.3s; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); background: black; overflow: hidden; }
-        .card:hover { transform: translateY(-5px); border-color: var(--neon-blue); box-shadow: 0 0 20px rgba(0, 243, 255, 0.2); }
-        .progress-bar { height: 4px; background: linear-gradient(90deg, #00f3ff, #9d00ff); width: 0%; transition: width 0.3s; }
-    </style>
+<meta charset="UTF-8">
+<title>Infinity Anime Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+body{background:#030303;color:white}
+.card{background:#000;border:1px solid #222;border-radius:12px}
+</style>
 </head>
-<body class="p-4 md:p-10 pb-40">
 
-    <div class="max-w-7xl mx-auto relative z-10">
-        
-        <header class="flex flex-col md:flex-row justify-between items-center mb-10 glass p-6 rounded-3xl border border-cyan-500/20">
-            <div>
-                <h1 class="font-cyber text-3xl bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-500">INFINITY v9</h1>
-                <p class="text-[10px] text-cyan-500 font-bold tracking-[0.4em] uppercase mt-1">Bulk & Discovery System</p>
-            </div>
-            <button onclick="enableNotif()" class="mt-4 md:mt-0 px-6 py-2 bg-cyan-500/10 border border-cyan-500 text-cyan-400 font-bold rounded-full hover:bg-cyan-500 transition">🔔 ALERTS</button>
-        </header>
+<body class="p-4 max-w-6xl mx-auto">
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
-            <div class="lg:col-span-4 space-y-6">
-                <div class="glass p-6 rounded-3xl border-l-4 border-purple-500">
-                    <h2 class="text-sm font-cyber mb-4 text-purple-400 uppercase tracking-widest">⚡ Bulk Linker</h2>
-                    <textarea id="bulkInput" placeholder="Enter list (e.g. Naruto, Bleach, One Piece)..." 
-                              class="w-full bg-black/50 border border-white/10 p-4 rounded-xl h-40 text-xs outline-none focus:border-purple-500"></textarea>
-                    
-                    <div id="bulkStatus" class="hidden mt-3">
-                        <div class="w-full bg-white/5 h-1 rounded-full mb-1"><div id="bulkProgress" class="progress-bar"></div></div>
-                        <p id="bulkText" class="text-[9px] text-purple-300 uppercase font-bold text-center">Processing...</p>
-                    </div>
-                    
-                    <button onclick="massAdd()" id="bulkBtn" class="w-full mt-3 bg-purple-600 hover:bg-purple-500 py-3 rounded-xl font-bold text-xs uppercase transition">Sync Whole List</button>
-                </div>
+<!-- HEADER -->
+<header class="flex justify-between items-center mb-6">
+  <h1 class="text-xl font-bold text-cyan-400">INFINITY</h1>
+  <div class="flex gap-3 items-center">
+    <button onclick="enableNotif()">🔔</button>
+    <button onclick="openBell()">Bell <span id="bellCount" class="text-red-500 hidden">0</span></button>
+    <button onclick="openDiscovery()">Discovery</button>
+  </div>
+</header>
 
-                <div class="glass p-6 rounded-3xl border border-white/10">
-                    <h3 class="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-4">Quick Search</h3>
-                    <input type="text" id="globalSearch" oninput="liveSearch()" placeholder="Search internet..." class="w-full bg-black/40 border border-white/10 p-3 rounded-xl text-xs outline-none">
-                    <div id="searchResults" class="mt-3 space-y-2 max-h-40 overflow-y-auto"></div>
-                </div>
-            </div>
+<!-- SEARCH -->
+<input id="searchInput" placeholder="Search anime (English / Japanese)"
+class="w-full p-2 mb-4 bg-black border border-gray-700">
 
-            <div class="lg:col-span-8 space-y-12">
-                <section>
-                    <h2 class="text-2xl font-bold font-cyber mb-6 flex items-center gap-3">
-                        <span class="w-2 h-8 bg-cyan-500 rounded-full"></span> MY WATCHLIST
-                    </h2>
-                    <div id="myAnimeList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-                </section>
+<!-- FILTER -->
+<select id="genreFilter" onchange="renderList()" class="mb-4 bg-black border p-2">
+<option value="">All Genres</option>
+</select>
 
-                <section class="glass p-6 rounded-3xl border border-white/5">
-                    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                        <h2 class="text-xl font-bold font-cyber text-purple-400">DISCOVER 2026</h2>
-                        <div class="flex gap-2">
-                            <button onclick="loadSeason('now')" class="px-4 py-2 bg-white/5 hover:bg-cyan-500/20 border border-white/10 rounded-lg text-[10px] font-bold">WINTER</button>
-                            <button onclick="loadSeason('upcoming')" class="px-4 py-2 bg-white/5 hover:bg-purple-500/20 border border-white/10 rounded-lg text-[10px] font-bold">UPCOMING</button>
-                        </div>
-                    </div>
-                    <div id="discoveryGrid" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
-                </section>
-            </div>
-        </div>
-    </div>
+<!-- ADD -->
+<div class="flex gap-2 mb-4">
+<input id="addInput" placeholder="Add anime name"
+class="flex-1 p-2 bg-black border">
+<button onclick="addAnime()" class="bg-cyan-600 px-4">Add</button>
+</div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, orderBy } 
-        from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+<!-- WATCHLIST -->
+<div id="list" class="grid md:grid-cols-2 gap-4"></div>
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyDYvHIugakxPULLyI85Iu_0M3_U9tW8wU",
-            authDomain: "animetracker-gojo.firebaseapp.com",
-            projectId: "animetracker-gojo",
-            storageBucket: "animetracker-gojo.appspot.com",
-            messagingSenderId: "412459430656",
-            appId: "1:412459430656:web:2560368142cc5d109f2575"
-        };
+<script>
+/* ===== DATA ===== */
+let list = JSON.parse(localStorage.getItem("list")) || [];
+let bell = JSON.parse(localStorage.getItem("bell")) || [];
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const animeCol = collection(db, "myAnime");
+/* ===== NOTIFICATION ===== */
+function enableNotif(){
+  Notification.requestPermission();
+}
+function notify(title){
+  if(Notification.permission==="granted"){
+    new Notification("New Episode", { body:title });
+  }
+  bell.push(title);
+  localStorage.setItem("bell",JSON.stringify(bell));
+  updateBell();
+}
+function updateBell(){
+  const b=document.getElementById("bellCount");
+  if(bell.length){
+    b.textContent=bell.length;
+    b.classList.remove("hidden");
+  } else b.classList.add("hidden");
+}
+function openBell(){
+  alert(bell.join("\n")||"No new updates");
+  bell=[];
+  localStorage.removeItem("bell");
+  updateBell();
+}
+updateBell();
 
-        let trackedIds = new Set();
-        let currentDiscoverData = [];
+/* ===== ADD ANIME (LATEST ONLY) ===== */
+async function addAnime(){
+  const q=addInput.value.trim();
+  if(!q) return;
 
-        // 1. MASS ADD FEATURE
-        window.massAdd = async () => {
-            const raw = document.getElementById('bulkInput').value;
-            if(!raw.trim()) return;
-            const names = raw.split(/[,\n]/).map(n => n.trim()).filter(n => n);
-            
-            const btn = document.getElementById('bulkBtn');
-            const status = document.getElementById('bulkStatus');
-            const bar = document.getElementById('bulkProgress');
-            const txt = document.getElementById('bulkText');
+  const res=await fetch(
+    `https://api.jikan.moe/v4/anime?q=${q}&order_by=start_date&sort=desc&sfw`
+  );
+  const j=await res.json();
+  const a=j.data?.[0];
+  if(!a) return;
 
-            btn.disabled = true; status.classList.remove('hidden');
+  list.push({
+    title:a.title_english||a.title,
+    jp:a.title_japanese||"",
+    img:a.images.jpg.large_image_url,
+    genres:a.genres.map(g=>g.name),
+    date:a.aired.from?.split("T")[0]||"TBA"
+  });
 
-            for(let i=0; i<names.length; i++) {
-                const name = names[i];
-                txt.innerText = `Linking: ${name}...`;
-                bar.style.width = `${((i+1)/names.length)*100}%`;
+  localStorage.setItem("list",JSON.stringify(list));
+  addInput.value="";
+  loadGenres();
+  renderList();
+}
 
-                try {
-                    const res = await fetch(`https://api.jikan.moe/v4/anime?q=${name}&limit=1`);
-                    const json = await res.json();
-                    if(json.data?.[0]) {
-                        const a = json.data[0];
-                        await addDoc(animeCol, {
-                            title: a.title_english || a.title,
-                            image: a.images.jpg.large_image_url,
-                            ep: 1, status: a.status,
-                            relDate: a.aired.from ? a.aired.from.split('T')[0] : '',
-                            mal_id: a.mal_id, updated: Date.now()
-                        });
-                    }
-                } catch(e) {}
-                await new Promise(r => setTimeout(r, 1000));
-            }
-            txt.innerText = "FINISH!";
-            setTimeout(() => { status.classList.add('hidden'); btn.disabled = false; }, 2000);
-            document.getElementById('bulkInput').value = '';
-        };
+/* ===== RENDER ===== */
+function renderList(){
+  const s=searchInput.value.toLowerCase();
+  const g=genreFilter.value;
+  listDiv.innerHTML="";
 
-        // 2. FIREBASE SYNC
-        onSnapshot(query(animeCol, orderBy("updated", "desc")), (snap) => {
-            const list = document.getElementById('myAnimeList');
-            list.innerHTML = ''; trackedIds.clear();
-            const today = new Date().toISOString().split('T')[0];
+  list
+  .filter(a=>
+    (!g||a.genres.includes(g)) &&
+    (a.title.toLowerCase().includes(s) ||
+     a.jp.toLowerCase().includes(s))
+  )
+  .forEach(a=>{
+    const d=document.createElement("div");
+    d.className="card p-3 flex gap-3";
+    d.innerHTML=`
+      <img src="${a.img}" class="w-20 h-28 object-cover">
+      <div>
+        <b>${a.title}</b>
+        <div class="text-xs text-gray-400">${a.date}</div>
+        <div class="text-xs">${a.genres.join(", ")}</div>
+        <button onclick="notify('${a.title}')" class="mt-2 text-cyan-400">
+          Simulate New Episode
+        </button>
+      </div>`;
+    listDiv.appendChild(d);
+  });
+}
+const listDiv=document.getElementById("list");
 
-            snap.forEach(d => {
-                const a = d.data();
-                if(a.mal_id) trackedIds.add(a.mal_id);
-                if(Notification.permission==='granted' && a.relDate===today) new Notification("Release!", {body: `${a.title} Today!`});
+/* ===== GENRES ===== */
+function loadGenres(){
+  genreFilter.innerHTML='<option value="">All Genres</option>';
+  [...new Set(list.flatMap(a=>a.genres))]
+  .forEach(g=>{
+    genreFilter.innerHTML+=`<option>${g}</option>`;
+  });
+}
+loadGenres();
+renderList();
 
-                const div = document.createElement('div');
-                div.className = 'glass p-3 rounded-2xl flex gap-4 border border-white/5 relative group';
-                div.innerHTML = `
-                    <img src="${a.image}" class="w-20 h-28 object-cover rounded-xl shadow-lg">
-                    <div class="flex-1 flex flex-col justify-between py-1">
-                        <div>
-                            <h3 class="font-bold text-sm text-cyan-100 leading-tight truncate w-40">${a.title}</h3>
-                            <div class="text-[9px] text-gray-500 mt-1 uppercase font-bold">${a.relDate || 'TBA'}</div>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <button onclick="up('${d.id}',${a.ep},-1)" class="w-7 h-7 bg-white/5 rounded-lg hover:bg-white/10">-</button>
-                            <span class="text-lg font-cyber font-bold text-cyan-400">${a.ep}</span>
-                            <button onclick="up('${d.id}',${a.ep},1)" class="w-7 h-7 bg-cyan-600 rounded-lg text-black font-bold">+</button>
-                        </div>
-                    </div>
-                    <button onclick="del('${d.id}')" class="absolute top-2 right-2 text-white/10 hover:text-red-500">✕</button>
-                `;
-                list.appendChild(div);
-            });
-            renderDiscovery();
-        });
+/* ===== DISCOVERY ===== */
+function openDiscovery(){
+  window.open("https://myanimelist.net/anime/season","_blank");
+}
+</script>
 
-        // 3. DISCOVERY LOGIC
-        window.loadSeason = async (type) => {
-            const res = await fetch(`https://api.jikan.moe/v4/seasons/${type}`);
-            const json = await res.json();
-            currentDiscoverData = json.data;
-            renderDiscovery();
-        };
-
-        function renderDiscovery() {
-            const grid = document.getElementById('discoveryGrid');
-            grid.innerHTML = '';
-            const filtered = currentDiscoverData.filter(a => !trackedIds.has(a.mal_id));
-            filtered.forEach(a => {
-                const title = a.title_english || a.title;
-                const div = document.createElement('div');
-                div.className = 'card relative h-52 cursor-pointer group';
-                div.onclick = () => addOne(a);
-                div.innerHTML = `
-                    <img src="${a.images.jpg.large_image_url}" class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition">
-                    <div class="absolute bottom-0 w-full bg-black/90 p-2 border-t border-white/10">
-                        <p class="text-[10px] font-bold truncate">${title}</p>
-                        <p class="text-[8px] text-cyan-400 font-bold uppercase mt-1">+ TRACK</p>
-                    </div>
-                `;
-                grid.appendChild(div);
-            });
-        }
-
-        // 4. HELPERS
-        window.addOne = async (a) => addDoc(animeCol, { title: a.title_english || a.title, image: a.images.jpg.large_image_url, ep: 1, status: a.status, relDate: a.aired.from ? a.aired.from.split('T')[0] : '', mal_id: a.mal_id, updated: Date.now() });
-        window.up = (id, c, ch) => updateDoc(doc(db, 'myAnime', id), { ep: c+ch, updated: Date.now() });
-        window.del = (id) => deleteDoc(doc(db, 'myAnime', id));
-        window.enableNotif = () => Notification.requestPermission();
-        loadSeason('now');
-    </script>
 </body>
 </html>
